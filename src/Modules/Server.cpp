@@ -7,22 +7,23 @@
 #include "Features/ChallengeMode.hpp"
 #include "Features/Demo/NetworkGhostPlayer.hpp"
 #include "Features/EntityList.hpp"
-#include "Features/FovChanger.hpp"
 #include "Features/FCPS.hpp"
+#include "Features/FovChanger.hpp"
 #include "Features/GroundFramesCounter.hpp"
 #include "Features/Hud/Crosshair.hpp"
+#include "Features/Hud/InputHud.hpp"
 #include "Features/Hud/ScrollSpeed.hpp"
 #include "Features/Hud/StrafeHud.hpp"
 #include "Features/Hud/StrafeQuality.hpp"
-#include "Features/Hud/InputHud.hpp"
-#include "Features/Routing/StepSlopeBoostDebug.hpp"
 #include "Features/Hud/Toasts.hpp"
 #include "Features/NetMessage.hpp"
+#include "Features/OverlayRender.hpp"
 #include "Features/PlayerTrace.hpp"
+#include "Features/RNGManip.hpp"
 #include "Features/ReloadedFix.hpp"
 #include "Features/Routing/EntityInspector.hpp"
 #include "Features/Routing/SeamshotFind.hpp"
-#include "Features/RNGManip.hpp"
+#include "Features/Routing/StepSlopeBoostDebug.hpp"
 #include "Features/SegmentedTools.hpp"
 #include "Features/Session.hpp"
 #include "Features/Speedrun/SpeedrunTimer.hpp"
@@ -41,12 +42,10 @@
 #include "Utils.hpp"
 #include "Variable.hpp"
 
-#include "Features/OverlayRender.hpp"
-
+#include <cfloat>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <cfloat>
 
 #ifdef _WIN32
 #	define strcasecmp _stricmp
@@ -54,6 +53,126 @@
 
 #define RESET_COOP_PROGRESS_MESSAGE_TYPE "coop-reset"
 #define CM_FLAGS_MESSAGE_TYPE "cm-flags"
+
+template <typename T>
+inline void DataMapAccess(T *ignored, datamap_t **p) {
+	*p = &T::m_DataMap;
+}
+
+class CDatadescGeneratedNameHolder {
+public:
+	CDatadescGeneratedNameHolder(const char *pszBase)
+		: m_pszBase(pszBase) {
+		m_nLenBase = strlen(m_pszBase);
+	}
+
+	~CDatadescGeneratedNameHolder() {
+		for (int i = 0; i < m_Names.m_Size; i++) {
+			delete m_Names.m_pElements[i];
+		}
+	}
+
+	const char *GenerateName(const char *pszIdentifier) {
+		char *pBuf = new char[m_nLenBase + strlen(pszIdentifier) + 1];
+		strcpy(pBuf, m_pszBase);
+		strcat(pBuf, pszIdentifier);
+		m_Names.Append(pBuf);
+		return pBuf;
+	}
+
+private:
+	const char *m_pszBase;
+	size_t m_nLenBase;
+	CUtlVector<char *> m_Names;
+};
+
+datamap_t CPointSurvey::m_DataMap = {0, 0, "CPointSurvey", 0};
+datamap_t *CPointSurvey::GetDataDescMap(void) {
+	return &m_DataMap;
+}
+datamap_t *CPointSurvey::GetBaseMap() {
+	datamap_t *pResult;
+	DataMapAccess((CBaseEntity *)0, &pResult);
+	return pResult;
+}
+template <typename T>
+datamap_t *DataMapInit(T *);
+template <>
+datamap_t *DataMapInit<CPointSurvey>(CPointSurvey *);
+namespace CPointSurvey_DataDescInit {
+	datamap_t *g_DataMapHolder = DataMapInit((CPointSurvey *)0);
+}
+template <>
+datamap_t *DataMapInit<CPointSurvey>(CPointSurvey *) {
+	typedef CPointSurvey classNameTypedef;
+	static CDatadescGeneratedNameHolder nameHolder("CPointSurvey");
+	CPointSurvey::m_DataMap.baseMap = CPointSurvey::GetBaseMap();
+	static typedescription_t dataDesc[] = {
+		{FIELD_VOID, 0, 0, 0, 0, 0, 0, 0, 0},
+	};
+	if (sizeof(dataDesc) > sizeof(dataDesc[0])) {
+		classNameTypedef::m_DataMap.dataNumFields = (sizeof(dataDesc) / sizeof((dataDesc)[0])) - 1;
+		classNameTypedef::m_DataMap.dataDesc = &dataDesc[1];
+	} else {
+		classNameTypedef::m_DataMap.dataNumFields = 1;
+		classNameTypedef::m_DataMap.dataDesc = dataDesc;
+	}
+	return &classNameTypedef::m_DataMap;
+}
+
+SendProp SendPropInt(
+	const char *pVarName,
+	int offset,
+	int sizeofVar = -1,  // Handled by SENDINFO macro.
+	int nBits = -1,      // Set to -1 to automatically pick (max) number of bits based on size of element.
+	int flags = 0,
+	SendVarProxyFn varProxy = 0) {
+	return Memory::Read<decltype(SendPropInt) *>(Memory::Scan(server->Name(), "E8 ? ? ? ? 83 C4 20 50", 1))(pVarName, offset, sizeofVar, nBits, flags, varProxy);
+}
+
+SendProp SendPropDataTable(
+	const char *pVarName,
+	int offset,
+	SendTable *pTable,
+	SendTableProxyFn varProxy = (SendTableProxyFn)Memory::Scan(server->Name(), "55 8B EC 8B 45 10 5D")) {
+	return Memory::Read<decltype(SendPropDataTable) *>(Memory::Scan(server->Name(), "E8 ? ? ? ? 8B 75 74", 1))(pVarName, offset, pTable, varProxy);
+}
+
+namespace DT_PointSurvey {
+	struct ignored;
+	extern SendTable g_SendTable;
+}  // namespace DT_PointSurvey
+static ServerClass g_CPointSurvey_ClassReg("CPointSurvey", &DT_PointSurvey::g_SendTable);
+ServerClass *CPointSurvey::GetServerClass() {
+	return &g_CPointSurvey_ClassReg;
+}
+SendTable *CPointSurvey::m_pClassSendTable = &DT_PointSurvey::g_SendTable;
+int CPointSurvey::YouForgotToImplementOrDeclareServerClass() {
+	return 0;
+}
+template <typename T>
+int ServerClassInit(T *);
+namespace DT_PointSurvey {
+	struct ignored;
+}
+template <>
+int ServerClassInit<DT_PointSurvey::ignored>(DT_PointSurvey::ignored *);
+namespace DT_PointSurvey {
+	SendTable g_SendTable;
+	int g_SendTableInit = ServerClassInit((DT_PointSurvey::ignored *)0);
+}  // namespace DT_PointSurvey
+template <>
+int ServerClassInit<DT_PointSurvey::ignored>(DT_PointSurvey::ignored *) {
+	typedef CPointSurvey currentSendDTClass;
+	static const char *g_pSendTableName = "DT_PointSurvey";
+	SendTable &sendTable = DT_PointSurvey::g_SendTable;
+	static SendProp g_SendProps[] = {
+		SendPropInt("should_never_see_this", 0, sizeof(int)),
+		// SendPropDataTable("baseclass", 0, CPointSurvey::CBaseEntity::m_pClassSendTable),
+	};
+	Memory::Read<void(__rescall *)(void *, void *, int, const char *)>(Memory::Scan(server->Name(), "E8 ? ? ? ? B8 ? ? ? ? C3 8B 41 04", 1))(g_SendProps, g_SendProps + 1, sizeof(g_SendProps) / sizeof(SendProp) - 1, g_pSendTableName);  // SendTable::Construct()
+	return 1;
+}
 
 Variable sv_cheats;
 Variable sv_footsteps;
@@ -180,7 +299,6 @@ DETOUR_T(bool, Server::CheckJumpButton) {
 
 // CGameMovement::CheckJumpButton
 DETOUR(Server::StepMove, Vector &pFirstDest, CGameTrace &pFirstTrace) {
-
 	if (engine->IsGamePaused()) {
 		return Server::StepMove(thisptr, pFirstDest, pFirstTrace);
 	}
@@ -196,7 +314,7 @@ DETOUR(Server::StepMove, Vector &pFirstDest, CGameTrace &pFirstTrace) {
 // CGameMovement::CheckJumpButton
 DETOUR_T(int, Server::TryPlayerMove, Vector *pFirstDest, CGameTrace *pFirstTrace) {
 	auto result = Server::TryPlayerMove(thisptr, pFirstDest, pFirstTrace);
-	
+
 	if (!engine->IsGamePaused()) {
 		auto mv = *reinterpret_cast<CHLMoveData **>((uintptr_t)thisptr + Offsets::mv);
 		StepSlopeBoostDebug::OnTryPlayerMoveEnd(mv);
@@ -268,7 +386,7 @@ DETOUR(Server::PlayerRunCommand, CUserCmd *cmd, void *moveHelper) {
 
 	Cheats::PatchBhop(slot, thisptr, cmd);
 
-	// TAS playback overrides inputs, even if they're made by the map. 
+	// TAS playback overrides inputs, even if they're made by the map.
 	// Allow Reloaded's +attack input for time portal.
 	if (tasPlayer->IsActive() && reloadedFix->isPlacingTimePortal) {
 		cmd->buttons |= IN_ATTACK;
@@ -330,7 +448,7 @@ DETOUR(Server::ProcessMovement, void *player, CMoveData *move) {
 	groundFramesCounter->HandleMovementFrame(slot, grounded);
 	strafeQuality.OnMovement(slot, grounded);
 	if (move->m_nButtons & IN_JUMP) scrollSpeedHud.OnJump(slot);
-	Event::Trigger<Event::PROCESS_MOVEMENT>({ slot, true });
+	Event::Trigger<Event::PROCESS_MOVEMENT>({slot, true});
 
 	auto res = Server::ProcessMovement(thisptr, player, move);
 
@@ -347,14 +465,13 @@ DETOUR(Server::ProcessMovement, void *player, CMoveData *move) {
 }
 
 // CGameMovement::GetPlayerViewOffset
-DETOUR_T(Vector*, Server::GetPlayerViewOffset, bool ducked) {
-
+DETOUR_T(Vector *, Server::GetPlayerViewOffset, bool ducked) {
 	if (sar_force_qc.GetBool() && sv_cheats.GetBool()) {
 		bool holdingDuck = (inputHud.GetButtonBits(GET_SLOT()) & IN_DUCK);
 		if (holdingDuck) ducked = false;
 	}
 
-	return Server::GetPlayerViewOffset(thisptr,ducked);
+	return Server::GetPlayerViewOffset(thisptr, ducked);
 }
 
 Variable sar_always_transmit_heavy_ents("sar_always_transmit_heavy_ents", "0", "Always transmit large but seldom changing edicts to clients to prevent lag spikes.\n");
@@ -616,7 +733,7 @@ static void __cdecl AcceptInput_Hook(void *thisptr, const char *inputName, void 
 		}
 		if (end) {
 			if (transition_time != 0) {
-				auto time = (session->GetTick() - transition_time)  / 60.0f;
+				auto time = (session->GetTick() - transition_time) / 60.0f;
 				toastHud.AddToast("transition", Utils::ssprintf("Transition lost %.3f sec", time));
 				transition_time = 0;
 			}
@@ -673,8 +790,7 @@ static void InitPlayerRunCommandHook() {
 }
 
 // CServerGameDLL::GameFrame
-DETOUR(Server::GameFrame, bool simulating)
-{
+DETOUR(Server::GameFrame, bool simulating) {
 	if (!IsAcceptInputTrampolineInitialized) InitAcceptInputTrampoline();
 	if (!g_IsCMFlagHookInitialized) InitCMFlagHook();
 	if (!g_IsPlayerRunCommandHookInitialized) InitPlayerRunCommandHook();
@@ -718,7 +834,7 @@ DETOUR(Server::ApplyGameSettings, KeyValues *pKV) {
 DETOUR_T(void, Server::OnRemoveEntity, IHandleEntity *ent, CBaseHandle handle) {
 	auto info = entityList->GetEntityInfoByIndex(handle.GetEntryIndex());
 	bool hasSerialChanged = false;
-	
+
 	for (int i = g_ent_slot_serial.size() - 1; i >= 0; i--) {
 		if (handle.GetEntryIndex() == g_ent_slot_serial[i].slot && !g_ent_slot_serial[i].done) {
 			hasSerialChanged = true;
@@ -771,13 +887,13 @@ static void netResetCoopProgress(const void *data, size_t size) {
 	} else {
 		resetCoopProgress();
 		Event::Trigger<Event::COOP_RESET_REMOTE>({});
-		g_sendResetDoneAt = session->GetTick() + 10; // send done message in 10 ticks, to be safe
+		g_sendResetDoneAt = session->GetTick() + 10;  // send done message in 10 ticks, to be safe
 	}
 }
 
 float hostTimeWrap() {
 	return engine->GetHostTime();
-} 
+}
 
 static char g_orig_check_stuck_code[6];
 static void *g_check_stuck_code;
@@ -898,62 +1014,62 @@ bool Server::Init() {
 #ifdef _WIN32
 	TraceFirePortal = (_TraceFirePortal)Memory::Scan(server->Name(), "53 8B DC 83 EC 08 83 E4 F0 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC 81 EC 38 07 00 00 56 57 8B F1", 0);
 	FindPortal = (_FindPortal)Memory::Scan(server->Name(), "55 8B EC 0F B6 45 08 8D 0C 80 03 C9 53 8B 9C 09 ? ? ? ? 03 C9 56 57 85 DB 74 3C 8B B9 ? ? ? ? 33 C0 33 F6 EB 08", 0);
-	Memory::UnProtect((void *)((uintptr_t)TraceFirePortal + 391), 1); // see setPortalsThruPortals
+	Memory::UnProtect((void *)((uintptr_t)TraceFirePortal + 391), 1);  // see setPortalsThruPortals
 #else
 	if (sar.game->Is(SourceGame_EIPRelPIC)) {
 		TraceFirePortal = (_TraceFirePortal)Memory::Scan(server->Name(), "55 89 E5 57 56 8D B5 F4 F8 FF FF 53 81 EC 30 07 00 00 8B 45 14 6A 00 8B 5D 0C FF 75 08 56 89 85 D0 F8 FF FF", 0);
 		FindPortal = (_FindPortal)Memory::Scan(server->Name(), "55 57 56 53 83 EC 2C 8B 44 24 40 8B 74 24 48 8B 7C 24 44 89 44 24 14 0F B6 C0 8D 04 80 89 74 24 0C C1 E0 02", 0);
-		Memory::UnProtect((void *)((uintptr_t)TraceFirePortal + 388), 1); // see setPortalsThruPortals
+		Memory::UnProtect((void *)((uintptr_t)TraceFirePortal + 388), 1);  // see setPortalsThruPortals
 	} else if (sar.game->Is(SourceGame_PortalReloaded) || sar.game->Is(SourceGame_PortalStoriesMel)) {
 		TraceFirePortal = (_TraceFirePortal)Memory::Scan(server->Name(), "55 89 E5 57 56 8D BD F4 F8 FF FF 53 81 EC 3C 07 00 00 8B 45 14 C7 44 24 08 00 00 00 00 89 3C 24 8B 5D 0C", 0);
 		FindPortal = (_FindPortal)Memory::Scan(server->Name(), "55 89 E5 57 56 53 83 EC 2C 8B 45 08 8B 7D 0C 8B 4D 10 89 45 D8 0F B6 C0 8D 04 80 89 7D E0 C1 E0 02 89 4D DC", 0);
-		Memory::UnProtect((void *)((uintptr_t)TraceFirePortal + 462), 1); // see setPortalsThruPortals
+		Memory::UnProtect((void *)((uintptr_t)TraceFirePortal + 462), 1);  // see setPortalsThruPortals
 	} else {
 		TraceFirePortal = (_TraceFirePortal)Memory::Scan(server->Name(), "55 89 E5 57 56 8D 7D ? 53 81 EC ? ? ? ? 0F B6 45", 0);
 		FindPortal = (_FindPortal)Memory::Scan(server->Name(), "55 89 E5 57 56 53 83 EC ? 0F B6 45 ? 0F B6 55 ? 88 45", 0);
-		Memory::UnProtect((void *)((uintptr_t)TraceFirePortal + 409), 1); // see setPortalsThruPortals
+		Memory::UnProtect((void *)((uintptr_t)TraceFirePortal + 409), 1);  // see setPortalsThruPortals
 	}
 #endif
 
 #ifdef _WIN32
-	ViewPunch = (decltype (ViewPunch))Memory::Scan(server->Name(), "55 8B EC A1 ? ? ? ? 83 EC 0C 83 78 30 00 56 8B F1 0F 85 ? ? ? ? 8B 16 8B 82 00 05 00 00 FF D0 84 C0 0F 85 ? ? ? ? 8B 45 08 F3 0F 10 1D ? ? ? ? F3 0F 10 00");
+	ViewPunch = (decltype(ViewPunch))Memory::Scan(server->Name(), "55 8B EC A1 ? ? ? ? 83 EC 0C 83 78 30 00 56 8B F1 0F 85 ? ? ? ? 8B 16 8B 82 00 05 00 00 FF D0 84 C0 0F 85 ? ? ? ? 8B 45 08 F3 0F 10 1D ? ? ? ? F3 0F 10 00");
 #else
 	if (sar.game->Is(SourceGame_EIPRelPIC)) {
-		ViewPunch = (decltype (ViewPunch))Memory::Scan(server->Name(), "55 57 56 53 83 EC 1C A1 ? ? ? ? 8B 5C 24 30 8B 74 24 34 8B 40 30 85 C0 75 38 8B 03 8B 80 04 05 00 00 3D ? ? ? ? 75 36 8B 83 B8 0B 00 00 8B 0D ? ? ? ?");
+		ViewPunch = (decltype(ViewPunch))Memory::Scan(server->Name(), "55 57 56 53 83 EC 1C A1 ? ? ? ? 8B 5C 24 30 8B 74 24 34 8B 40 30 85 C0 75 38 8B 03 8B 80 04 05 00 00 3D ? ? ? ? 75 36 8B 83 B8 0B 00 00 8B 0D ? ? ? ?");
 	} else if (sar.game->Is(SourceGame_PortalReloaded) || sar.game->Is(SourceGame_PortalStoriesMel)) {
-		ViewPunch = (decltype (ViewPunch))Memory::Scan(server->Name(), "55 89 E5 53 83 EC 24 A1 ? ? ? ? 8B 5D 08 8B 40 30 85 C0 74 0A 83 C4 24 5B 5D C3 8D 74 26 00 8B 03 89 1C 24 FF 90 04 05 00 00 84 C0 75 E7 8B 45 0C");
+		ViewPunch = (decltype(ViewPunch))Memory::Scan(server->Name(), "55 89 E5 53 83 EC 24 A1 ? ? ? ? 8B 5D 08 8B 40 30 85 C0 74 0A 83 C4 24 5B 5D C3 8D 74 26 00 8B 03 89 1C 24 FF 90 04 05 00 00 84 C0 75 E7 8B 45 0C");
 	} else {
-		ViewPunch = (decltype (ViewPunch))Memory::Scan(server->Name(), "55 89 E5 83 EC ? A1 ? ? ? ? 89 5D ? 89 75 ? 8B 5D ? 8B 75 ? 8B 40 ? 85 C0 74 ? 8B 5D");
+		ViewPunch = (decltype(ViewPunch))Memory::Scan(server->Name(), "55 89 E5 83 EC ? A1 ? ? ? ? 89 5D ? 89 75 ? 8B 5D ? 8B 75 ? 8B 40 ? 85 C0 74 ? 8B 5D");
 	}
 #endif
 	g_ViewPunch_Hook.SetFunc(ViewPunch);
 
 	// fcps fuckery
 #ifdef _WIN32
-	UTIL_FindClosestPassableSpace = (decltype (UTIL_FindClosestPassableSpace))Memory::Scan(server->Name(), "53 8B DC 83 EC 08 83 E4 F0 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC 81 EC 98 02 00 00 8B 43 0C 8B 48 08 F3 0F 10 48 04 F3 0F 10 00 F3 0F 10 3D ? ? ? ?");
-	FindClosestPassableSpace = (decltype (FindClosestPassableSpace))Memory::Scan(server->Name(), "53 8B DC 83 EC 08 83 E4 F0 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC A1 ? ? ? ? 81 EC 88 02 00 00 83 78 30 00 56 57 0F 84 ? ? ? ? 8B 73 08 8B 8E DC 00 00 00");
+	UTIL_FindClosestPassableSpace = (decltype(UTIL_FindClosestPassableSpace))Memory::Scan(server->Name(), "53 8B DC 83 EC 08 83 E4 F0 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC 81 EC 98 02 00 00 8B 43 0C 8B 48 08 F3 0F 10 48 04 F3 0F 10 00 F3 0F 10 3D ? ? ? ?");
+	FindClosestPassableSpace = (decltype(FindClosestPassableSpace))Memory::Scan(server->Name(), "53 8B DC 83 EC 08 83 E4 F0 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC A1 ? ? ? ? 81 EC 88 02 00 00 83 78 30 00 56 57 0F 84 ? ? ? ? 8B 73 08 8B 8E DC 00 00 00");
 #else
 	if (sar.game->Is(SourceGame_EIPRelPIC)) {
-		UTIL_FindClosestPassableSpace = (decltype (UTIL_FindClosestPassableSpace))Memory::Scan(server->Name(), "55 BA 00 01 00 00 66 0F EF ED 66 0F EF C0 57 56 53 81 EC CC 02 00 00 8B 0D ? ? ? ? 8B 84 24 E4 02 00 00 66 89 94 24 54 01 00 00 8B 3D ? ? ? ?");
-		FindClosestPassableSpace = (decltype (FindClosestPassableSpace))Memory::Scan(server->Name(), "A1 ? ? ? ? 57 56 53 8B 5C 24 10 8B 74 24 14 8B 50 30 8B 4C 24 18 85 D2 74 29 8B 83 E4 00 00 00 8B 3D ? ? ? ? 83 F8 FF 74 24 0F B7 D0 C1 E8 10");
+		UTIL_FindClosestPassableSpace = (decltype(UTIL_FindClosestPassableSpace))Memory::Scan(server->Name(), "55 BA 00 01 00 00 66 0F EF ED 66 0F EF C0 57 56 53 81 EC CC 02 00 00 8B 0D ? ? ? ? 8B 84 24 E4 02 00 00 66 89 94 24 54 01 00 00 8B 3D ? ? ? ?");
+		FindClosestPassableSpace = (decltype(FindClosestPassableSpace))Memory::Scan(server->Name(), "A1 ? ? ? ? 57 56 53 8B 5C 24 10 8B 74 24 14 8B 50 30 8B 4C 24 18 85 D2 74 29 8B 83 E4 00 00 00 8B 3D ? ? ? ? 83 F8 FF 74 24 0F B7 D0 C1 E8 10");
 	} else if (sar.game->Is(SourceGame_PortalReloaded) || sar.game->Is(SourceGame_PortalStoriesMel)) {
-		UTIL_FindClosestPassableSpace = (decltype (UTIL_FindClosestPassableSpace))Memory::Scan(server->Name(), "55 89 E5 57 56 53 81 EC BC 02 00 00 C6 85 7C FE FF FF 00 8B 45 0C C6 85 7D FE FF FF 01 8B 4D 08 C7 85 78 FE FF FF 00 00 00 00");
-		FindClosestPassableSpace = (decltype (FindClosestPassableSpace))Memory::Scan(server->Name(), "8B 15 ? ? ? ? B8 01 00 00 00 8B 52 30 85 D2 0F 84 ? ? ? ? 55 89 E5 57 56 53 81 EC 7C 02 00 00 8B 55 08 8B 0D ? ? ? ? 8B 92 E4 00 00 00");
+		UTIL_FindClosestPassableSpace = (decltype(UTIL_FindClosestPassableSpace))Memory::Scan(server->Name(), "55 89 E5 57 56 53 81 EC BC 02 00 00 C6 85 7C FE FF FF 00 8B 45 0C C6 85 7D FE FF FF 01 8B 4D 08 C7 85 78 FE FF FF 00 00 00 00");
+		FindClosestPassableSpace = (decltype(FindClosestPassableSpace))Memory::Scan(server->Name(), "8B 15 ? ? ? ? B8 01 00 00 00 8B 52 30 85 D2 0F 84 ? ? ? ? 55 89 E5 57 56 53 81 EC 7C 02 00 00 8B 55 08 8B 0D ? ? ? ? 8B 92 E4 00 00 00");
 	} else {
-		UTIL_FindClosestPassableSpace = (decltype (UTIL_FindClosestPassableSpace))Memory::Scan(server->Name(), "55 89 E5 57 56 53 81 EC ? ? ? ? C6 85 ? ? ? ? ? 8B 45 ? C6 85");
-		FindClosestPassableSpace = (decltype (FindClosestPassableSpace))Memory::Scan(server->Name(), "55 B8 ? ? ? ? 89 E5 57 56 53 81 EC ? ? ? ? 8B 15");
+		UTIL_FindClosestPassableSpace = (decltype(UTIL_FindClosestPassableSpace))Memory::Scan(server->Name(), "55 89 E5 57 56 53 81 EC ? ? ? ? C6 85 ? ? ? ? ? 8B 45 ? C6 85");
+		FindClosestPassableSpace = (decltype(FindClosestPassableSpace))Memory::Scan(server->Name(), "55 B8 ? ? ? ? 89 E5 57 56 53 81 EC ? ? ? ? 8B 15");
 	}
 #endif
 	UTIL_FindClosestPassableSpace_Hook.SetFunc(UTIL_FindClosestPassableSpace);
 	FindClosestPassableSpace_Hook.SetFunc(FindClosestPassableSpace);
 
 #ifdef _WIN32
-	UTIL_GetCommandClientIndex = (decltype (UTIL_GetCommandClientIndex))Memory::Scan(server->Name(), "A1 ? ? ? ? 40 C3");
+	UTIL_GetCommandClientIndex = (decltype(UTIL_GetCommandClientIndex))Memory::Scan(server->Name(), "A1 ? ? ? ? 40 C3");
 #else
 	if (sar.game->Is(SourceGame_EIPRelPIC)) {
-		UTIL_GetCommandClientIndex = (decltype (UTIL_GetCommandClientIndex))Memory::Scan(server->Name(), "A1 ? ? ? ? 83 C0 01 C3");
+		UTIL_GetCommandClientIndex = (decltype(UTIL_GetCommandClientIndex))Memory::Scan(server->Name(), "A1 ? ? ? ? 83 C0 01 C3");
 	} else {
-		UTIL_GetCommandClientIndex = (decltype (UTIL_GetCommandClientIndex))Memory::Scan(server->Name(), "A1 ? ? ? ? 55 89 E5 5D 83 C0 01 C3");
+		UTIL_GetCommandClientIndex = (decltype(UTIL_GetCommandClientIndex))Memory::Scan(server->Name(), "A1 ? ? ? ? 55 89 E5 5D 83 C0 01 C3");
 	}
 #endif
 
@@ -977,7 +1093,7 @@ bool Server::Init() {
 		*(uint8_t *)code = 0xE8;
 		*(uint32_t *)(code + 1) = (uint32_t)&hostTimeWrap - (code + 5);
 #ifdef _WIN32
-		*(uint8_t *)(code + 5) = 0x90; // nop
+		*(uint8_t *)(code + 5) = 0x90;  // nop
 #endif
 
 		g_check_stuck_code = (void *)code;
@@ -991,6 +1107,41 @@ bool Server::Init() {
 		Server::IsInPVS = (Server::_IsInPVS)Memory::Scan(this->Name(), "55 57 56 53 31 DB 83 EC 0C 8B 74 24 20 8B 7C 24 24 66 83 7E 1A 00 8B 87 10 20 00 00 89 C2 0F 85 BC 00 00 00 85 C0 7F 75 8D B4 26");
 #endif
 		g_IsInPVS_Hook.SetFunc(IsInPVS);
+	}
+
+	/* point_survey fix */
+	if (true) {
+#ifdef _WIN32
+		class IEntityFactory {
+		public:
+			virtual void *Create(const char *pClassName) = 0;
+			virtual void Destroy(void *pNetworkable) = 0;
+			virtual size_t GetEntitySize() = 0;
+		};
+
+		class CEntityFactory : public IEntityFactory {
+		public:
+			CEntityFactory(const char *pClassName) {
+				void *entityFactory = Memory::Read<void *(*)()>(Memory::Scan(server->Name(), "E8 ? ? ? ? 8B 57 60", 1))();  // EntityFactoryDictionary()
+				(**(void(__rescall ***)(void *, void *, const char *))entityFactory)(entityFactory, this, pClassName);      // EntityFactoryDictionary::InstallFactory()
+			}
+			virtual void *Create(const char *pClassName) {
+				CPointSurvey *pEnt = new CPointSurvey();
+				Memory::Read<void *(__rescall *)(void *, bool)>(Memory::Scan(server->Name(), "E8 ? ? ? ? 83 C8 FF 33 C9", 1))(pEnt, 0);  // CBaseEntity::CBaseEntity()
+				((void(__rescall *)(void *, const char *))Memory::Scan(server->Name(), "55 8B EC 56 8B F1 57 8D 7E 10"))(pEnt, pClassName);
+				return pEnt + 16;
+			}
+			virtual void Destroy(void *pNetworkable) {
+				(*(void(__rescall ***)(void *))pNetworkable)[4](pNetworkable);  // Release
+			}
+			virtual size_t GetEntitySize() {
+				return sizeof(CPointSurvey);
+			}
+		};
+
+		static CEntityFactory factory("point_survey");
+#else
+#endif
 	}
 
 	NetMessage::RegisterHandler(RESET_COOP_PROGRESS_MESSAGE_TYPE, &netResetCoopProgress);

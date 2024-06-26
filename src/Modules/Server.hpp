@@ -14,6 +14,40 @@
 #	define AirMove_Skip_Offset 142
 #endif
 
+class CBaseEntity {
+public:
+	virtual ServerClass *GetServerClass();
+	static SendTable *m_pClassSendTable;
+	template <typename T>
+	friend int ServerClassInit(T *);
+	virtual int YouForgotToImplementOrDeclareServerClass();
+
+	static datamap_t m_DataMap;
+	static datamap_t *GetBaseMap();
+	template <typename T>
+	friend void DataMapAccess(T *, datamap_t **p);
+	template <typename T>
+	friend datamap_t *DataMapInit(T *);
+	virtual datamap_t *GetDataDescMap(void);
+};
+
+class CPointSurvey : public CBaseEntity {
+public:
+	virtual ServerClass *GetServerClass();
+	static SendTable *m_pClassSendTable;
+	template <typename T>
+	friend int ServerClassInit(T *);
+	virtual int YouForgotToImplementOrDeclareServerClass();
+
+	static datamap_t m_DataMap;
+	static datamap_t *GetBaseMap();
+	template <typename T>
+	friend void DataMapAccess(T *, datamap_t **p);
+	template <typename T>
+	friend datamap_t *DataMapInit(T *);
+	virtual datamap_t *GetDataDescMap(void);
+};
+
 class Server : public Module {
 public:
 	Interface *g_GameMovement = nullptr;

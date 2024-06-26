@@ -97,7 +97,9 @@ struct ClientClass {
 };
 
 struct ServerClass {
-	char *m_pNetworkName;
+	ServerClass(const char *pNetworkName, SendTable *pTable);
+
+	const char *m_pNetworkName;
 	SendTable *m_pTable;
 	ServerClass *m_pNext;
 	int m_ClassID;

@@ -283,6 +283,7 @@
     <ClCompile Include="Utils\lodepng.cpp" />
     <ClCompile Include="Utils\Math.cpp" />
     <ClCompile Include="Utils\Memory.cpp" />
+    <ClCompile Include="Utils\SDK\Class.cpp" />
     <ClCompile Include="Utils\SDK\EntityEdict.cpp" />
     <ClCompile Include="Utils\SDK\KeyValues.cpp" />
     <ClCompile Include="Utils\SDK\ServerPlugin.cpp" />

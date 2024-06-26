@@ -538,6 +538,7 @@
     <ClCompile Include="Modules\Matchmaking.cpp">
       <Filter>SourceAutoRecord\Modules</Filter>
     </ClCompile>
+    <ClCompile Include="Utils\SDK\Class.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\lib\minhook\buffer.h">
