@@ -8,6 +8,10 @@
 
 #ifdef _WIN32
 #	include <filesystem>
+#else
+#	include <fcntl.h>
+#	include <stdio.h>
+#	include <unistd.h>
 #endif
 
 #include "Cheats.hpp"
@@ -262,6 +266,29 @@ void SAR::Unload() {
 	CrashHandler::Cleanup();
 }
 
+CON_COMMAND(sar_release_mutex, "sar_release_mutex - allows multiple instances of the game to be launched\n") {
+#ifdef _WIN32
+	HANDLE handle = OpenMutex(MUTEX_ALL_ACCESS, false, "hl2_singleton_mutex");
+	if (handle == NULL)
+		return;
+
+	if (ReleaseMutex(handle))
+		console->Print("Successfully released mutex!");
+#else
+	int fd = open("/tmp/source_engine_2849099857.lock", O_WRONLY);
+	if (fd == -1)
+		return;
+
+	struct flock fl;
+	fl.l_type = F_UNLCK;
+	fl.l_whence = SEEK_SET;
+	fl.l_start = 0;
+	fl.l_len = 1;
+
+	if (fcntl(fd, F_SETLK, &fl) != -1)
+		console->Print("Successfully released mutex!");
+#endif
+}
 CON_COMMAND(sar_session, "sar_session - prints the current tick of the server since it has loaded\n") {
 	auto tick = session->GetTick();
 	console->Print("Session Tick: %i (%.3f)\n", tick, engine->ToTime(tick));
