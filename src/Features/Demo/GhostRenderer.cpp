@@ -180,7 +180,7 @@ CON_COMMAND(ghost_locator, "ghost_locator - Sends a coop-like ping to other ghos
 
 	Vector dir;
 	Math::AngleVectors(cam_ang, &dir);
-	dir *= 2048.0f;
+	dir *= 8192.0f;
 
 	CGameTrace tr;
 
@@ -197,5 +197,6 @@ CON_COMMAND(ghost_locator, "ghost_locator - Sends a coop-like ping to other ghos
 
 	engine->TraceRay(engine->engineTrace->ThisPtr(), ray, MASK_SHOT_PORTAL, &filter, &tr);
 
+	client->ShowLocator(tr.endpos, tr.plane.normal, GhostEntity::set_color);
 	networkManager.NotifyLocator(tr.endpos, tr.plane.normal);
 }
