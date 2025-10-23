@@ -8,7 +8,7 @@
 MoveToTool moveToTool[2] = {{0}, {1}};
 
 std::shared_ptr<TasToolParams> MoveToTool::ParseParams(std::vector<std::string> args) {
-	if (args.size() != 1 || args.size() != 2) {
+	if (args.size() != 1 && args.size() != 2) {
 		throw TasParserException(Utils::ssprintf("Wrong argument count for tool %s: %d", this->GetName(), args.size()));
 	}
 	if (args[0] == "off") {
@@ -39,8 +39,6 @@ void MoveToTool::Apply(TasFramebulk &bulk, const TasPlayerInfo &player) {
 	auto player_pos = player.position;
 	player_pos.z = 0;
 
-	float dist = Math::Distance(player_pos, this->params.point);
-
 	Vector vec;
 	vec = this->params.point - player_pos;
 
@@ -69,7 +67,7 @@ void MoveToTool::Apply(TasFramebulk &bulk, const TasPlayerInfo &player) {
 	bulk.moveAnalog.x = x;
 	bulk.moveAnalog.y = y;
 
-	if (dist < 1 && autoStrafeTool->GetVelocityAfterMove(player, x, y).Length2D() < 1) {
+	if (autoStrafeTool->GetVelocityAfterMove(player, x, y).Length2D() < 1) {
 		params.enabled = false;
 	}
 }
