@@ -8,9 +8,9 @@
 MoveToTool moveToTool[2] = {{0}, {1}};
 
 std::shared_ptr<TasToolParams> MoveToTool::ParseParams(std::vector<std::string> args) {
-	// if (args.size() == 1) {
-	// 	throw TasParserException(Utils::ssprintf("Wrong argument count for tool %s: %d", this->GetName(), args.size()));
-	// }
+	if (args.size() != 1 || args.size() != 2) {
+		throw TasParserException(Utils::ssprintf("Wrong argument count for tool %s: %d", this->GetName(), args.size()));
+	}
 	if (args[0] == "off") {
 		return std::make_shared<TasToolParams>(false);
 	}
