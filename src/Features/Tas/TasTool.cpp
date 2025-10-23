@@ -31,6 +31,7 @@ std::vector<std::string> TasTool::priorityList = {
 	"move",
 	"strafe",
 	"decel",
+	"moveto",
 };
 
 TasTool::TasTool(const char *name, int slot)
