@@ -5,8 +5,6 @@
 #include "EngineDemoPlayer.hpp"
 #include "EngineDemoRecorder.hpp"
 #include "Event.hpp"
-#include "FileSystem.hpp"
-#include "InputSystem.hpp"
 #include "Features/AchievementTracker.hpp"
 #include "Features/Camera.hpp"
 #include "Features/Cvars.hpp"
@@ -21,16 +19,18 @@
 #include "Features/Speedrun/SpeedrunTimer.hpp"
 #include "Features/Stitcher.hpp"
 #include "Features/Tas/TasPlayer.hpp"
+#include "FileSystem.hpp"
 #include "Game.hpp"
 #include "Hook.hpp"
+#include "InputSystem.hpp"
 #include "Interface.hpp"
 #include "SAR.hpp"
 #include "Server.hpp"
 #include "Utils.hpp"
 #include "Variable.hpp"
 
-#include <cstring>
 #include <cmath>
+#include <cstring>
 
 #define FPS_CHECK_WINDOW 0.5f
 
@@ -51,7 +51,7 @@ Variable sar_pause_at("sar_pause_at", "-1", -1, "Pause at the specified tick. -1
 Variable sar_pause_for("sar_pause_for", "0", 0, "Pause for this amount of ticks.\n");
 
 Variable sar_tick_debug("sar_tick_debug", "0", 0, 3, "Output debugging information to the console related to ticks and frames.\n");
-Variable sar_frametime_debug("sar_frametime_debug", "0", "Output debugging information to the console related to frametime.\n"); // see also host_print_frame_times
+Variable sar_frametime_debug("sar_frametime_debug", "0", "Output debugging information to the console related to frametime.\n");  // see also host_print_frame_times
 Variable sar_frametime_uncap("sar_frametime_uncap", "0", "EXPERIMENTAL - USE AT OWN RISK. Removes the 10-1000 FPS cap on frametime. More info https://wiki.portal2.sr/Frametime\n");
 Variable sar_command_debug("sar_command_debug", "0", 0, 2, "Output debugging information to the console related to commands. **Breaks svar_capture**\n");
 
@@ -104,7 +104,7 @@ void Engine::ExecuteCommand(const char *cmd, bool immediately) {
 		this->ExecuteClientCmd(this->engineClient->ThisPtr(), "");
 	}
 }
-float Engine::GetIPT() { // IntervalPerTick
+float Engine::GetIPT() {  // IntervalPerTick
 	if (this->interval_per_tick) {
 		return *this->interval_per_tick;
 	}
@@ -168,7 +168,6 @@ int Engine::PointToScreen(const Vector &point, Vector &screen) {
 	return this->ScreenPosition(nullptr, point, screen);
 }
 void Engine::SafeUnload(const char *postCommand) {
-
 	// give events some time to execute before plugin is disabled
 	Event::Trigger<Event::SAR_UNLOAD>({});
 	this->ExecuteCommand("sar_exit");
@@ -231,7 +230,7 @@ std::string Engine::GetCurrentMapTitle() {
 bool Engine::IsCoop() {
 	if (GetCurrentMapName().size() == 0) return false;
 	if (client->gamerules && *client->gamerules) {
-		using _IsMultiplayer = bool (__rescall *)(void *thisptr);
+		using _IsMultiplayer = bool(__rescall *)(void *thisptr);
 		return Memory::VMT<_IsMultiplayer>(*client->gamerules, Offsets::IsMultiplayer)(*client->gamerules);
 	}
 	return sv_portal_players.GetInt() == 2 || (engine->demoplayer->IsPlaying() && engine->GetMaxClients() >= 2);
@@ -289,7 +288,7 @@ ON_EVENT(PRE_TICK) {
 		if (!engine->IsCoop() || (!engine->IsOrange() && g_orangeReady)) {
 			if (engine->IsCoop()) {
 				g_coop_pausable = Variable("sv_pausable").GetBool();
-				engine->ExecuteCommand("stopvideos"); // loading animation goes over sync screen
+				engine->ExecuteCommand("stopvideos");  // loading animation goes over sync screen
 				Variable("sv_pausable").SetValue("1");
 			}
 			engine->ExecuteCommand("pause", true);
@@ -311,7 +310,7 @@ float Engine::GetClientTime() {
 }
 
 float Engine::GetHostTime() {
-	return this->engineTool->Original<float (__rescall *)(void *thisptr)>(Offsets::HostTick - 1)(this->engineTool->ThisPtr());
+	return this->engineTool->Original<float(__rescall *)(void *thisptr)>(Offsets::HostTick - 1)(this->engineTool->ThisPtr());
 }
 
 // CClientState::Disconnect
@@ -348,7 +347,7 @@ DETOUR_COMMAND(Engine::changelevel2_command) {
 }
 
 // CVEngineServer::ClientCommandKeyValues
-DETOUR(Engine::ClientCommandKeyValues, void* pEdict, KeyValues* pKeyValues) {
+DETOUR(Engine::ClientCommandKeyValues, void *pEdict, KeyValues *pKeyValues) {
 	AchievementTracker::CheckKeyValuesForAchievement(pKeyValues);
 	return Engine::ClientCommandKeyValues(thisptr, pEdict, pKeyValues);
 }
@@ -396,7 +395,7 @@ DETOUR(Engine::Frame) {
 		Event::Trigger<Event::POST_TICK>({false, session->GetTick()});
 	}
 
-	//demoplayer
+	//	demoplayer
 	if (engine->demoplayer->demoQueueSize > 0 && !engine->demoplayer->IsPlaying() && engine->demoplayer->IsPlaybackFixReady()) {
 		DemoParser parser;
 		auto name = engine->demoplayer->demoQueue[engine->demoplayer->currentDemoID];
@@ -465,7 +464,7 @@ DETOUR_MID_MH(Engine::ParseSmoothingInfo_Mid) {
         cmp eax, 8
         jne _orig
 
-			// Parse stuff that does not get parsed (thanks valve)
+										// Parse stuff that does not get parsed (thanks valve)
         push edi
         push edi
         mov ecx, esi
@@ -724,9 +723,7 @@ const ConCommandBase *Cmd_ExecuteCommand_Detour(int eTarget, const CCommand &com
 		cmd.erase(0, cmd.find_first_not_of(" \t"));
 		console->Print("Cmd_ExecuteCommand (%s) target: %d slot: %d\n", cmd.c_str(), eTarget, nClientSlot);
 	}
-	if (command.ArgC() >= 1 && !strcmp(command.Arg(0), "restart_level") && 
-	    engine->IsCoop() && !engine->IsOrange() &&
-	    (g_partnerHasSAR && !g_orangeReady)) {
+	if (command.ArgC() >= 1 && !strcmp(command.Arg(0), "restart_level") && engine->IsCoop() && !engine->IsOrange() && (g_partnerHasSAR && !g_orangeReady)) {
 		return 0;
 	}
 	Cmd_ExecuteCommand_Hook.Disable();
@@ -778,8 +775,8 @@ void _Host_RunFrame_Render_Detour() {
 		// in response to portal teleportations (and it probably breaks some
 		// other stuff too). This would normally be done within
 		// SCR_UpdateScreen, wrapping the main rendering calls
-		client->ClFrameStageNotify(5); // FRAME_RENDER_START
-		client->ClFrameStageNotify(6); // FRAME_RENDER_END
+		client->ClFrameStageNotify(5);  // FRAME_RENDER_START
+		client->ClFrameStageNotify(6);  // FRAME_RENDER_END
 	} else {
 		// Just do a normal render
 		_Host_RunFrame_Render_Hook.Disable();
@@ -820,8 +817,8 @@ ON_EVENT(FRAME) {
 
 static int framesToRun(void *bink) {
 	// BINK datastructure in bink.h from SE2007 leak
-	//uint32_t nframes = ((uint32_t *)bink)[2];
-	//uint32_t last_frame = ((uint32_t *)bink)[4];
+	//	uint32_t nframes = ((uint32_t *)bink)[2];
+	//	uint32_t last_frame = ((uint32_t *)bink)[4];
 	double framerate = (double)((uint32_t *)bink)[5] / (double)((uint32_t *)bink)[6];
 
 	double now = engine->GetHostTime();
@@ -836,16 +833,16 @@ static int framesToRun(void *bink) {
 	}
 
 	double to_run = (now - last) * framerate;
-	//int possible = nframes - last_frame - 1;
+	//	int possible = nframes - last_frame - 1;
 
-	//if (to_run > possible) return possible;
+	//	if (to_run > possible) return possible;
 	return (int)to_run;
 }
 
 static void advFrame(void *bink) {
 	// BINK datastructure in bink.h from SE2007 leak
-	//uint32_t nframes = ((uint32_t *)bink)[2];
-	//uint32_t last_frame = ((uint32_t *)bink)[4];
+	//	uint32_t nframes = ((uint32_t *)bink)[2];
+	//	uint32_t last_frame = ((uint32_t *)bink)[4];
 	double framerate = (double)((uint32_t *)bink)[5] / (double)((uint32_t *)bink)[6];
 
 	auto it = g_bink_last_frames.find(bink);
@@ -856,7 +853,7 @@ static void advFrame(void *bink) {
 	}
 }
 
-void (__stdcall *BinkNextFrame)(void *bink);
+void(__stdcall *BinkNextFrame)(void *bink);
 void __stdcall BinkNextFrame_Detour(void *bink);
 static Hook BinkNextFrame_Hook(&BinkNextFrame_Detour);
 void __stdcall BinkNextFrame_Detour(void *bink) {
@@ -866,7 +863,7 @@ void __stdcall BinkNextFrame_Detour(void *bink) {
 	if (g_bink_override_active) advFrame(bink);
 }
 
-int (__stdcall *BinkShouldSkip)(void *bink);
+int(__stdcall *BinkShouldSkip)(void *bink);
 int __stdcall BinkShouldSkip_Detour(void *bink);
 static Hook BinkShouldSkip_Hook(&BinkShouldSkip_Detour);
 int __stdcall BinkShouldSkip_Detour(void *bink) {
@@ -880,7 +877,7 @@ int __stdcall BinkShouldSkip_Detour(void *bink) {
 	}
 }
 
-int (__stdcall *BinkWait)(void *bink);
+int(__stdcall *BinkWait)(void *bink);
 int __stdcall BinkWait_Detour(void *bink);
 static Hook BinkWait_Hook(&BinkWait_Detour);
 int __stdcall BinkWait_Detour(void *bink) {
@@ -893,6 +890,53 @@ int __stdcall BinkWait_Detour(void *bink) {
 		return ret;
 	}
 }
+
+#ifdef _WIN32
+bool __cdecl CopyPropData_Impl(void *pDecoder, void *pOut, int iProp, void *arg_4) {
+	auto ppProp = (SendProp **)(((uintptr_t *)pDecoder)[13] + 4 * iProp);
+
+	console->Print("CopyPropData(%p, %p, %d) | ppProp = %p.\n", pDecoder, pOut, iProp, ppProp);
+
+	// if (iProp > 54)
+	// 	return false;
+
+	// console->Print("pProp = %p.\n", *ppProp);
+
+	return true;
+}
+
+void (*CopyPropData)();
+void __declspec(naked) CopyPropData_Detour() {
+	__asm {
+        pushad
+        pushfd
+
+        mov ecx, dword ptr [esp + 0x20]  // eax = pDecoder.
+        mov edx, dword ptr [esp + 0x08]  // esi = pOut.
+        mov ebx, dword ptr [esp + 0x28]  // [esp+4] on entry = pProp.
+        mov edi, dword ptr [esp + 0x2C]  // [esp+8] on entry = arg_4.
+        
+        push edi
+        push ebx
+        push edx
+        push ecx
+        call CopyPropData_Impl
+        add esp, 16
+        
+        test eax, eax 
+        jnz orig
+        
+		popfd
+        popad
+        ret 8
+        
+    orig:
+        popfd
+        popad
+        jmp CopyPropData
+	}
+}
+#endif
 
 Color Engine::GetLightAtPoint(Vector point) {
 #ifdef _WIN32
@@ -909,8 +953,7 @@ Color Engine::GetLightAtPoint(Vector point) {
 	return Color{(uint8_t)(light.x * 255), (uint8_t)(light.y * 255), (uint8_t)(light.z * 255), 255};
 }
 
-bool Engine::GetPlayerInfo(int ent_num, player_info_t* pInfo)
-{
+bool Engine::GetPlayerInfo(int ent_num, player_info_t *pInfo) {
 	return this->GetInfo(this->engineClient->ThisPtr(), ent_num, pInfo);
 }
 
@@ -1147,15 +1190,15 @@ bool Engine::Init() {
 	fps_max = Variable("fps_max");
 	mat_norendering = Variable("mat_norendering");
 	mat_filtertextures = Variable("mat_filtertextures");
-	phys_timescale = Variable("phys_timescale"); 
+	phys_timescale = Variable("phys_timescale");
 
 	// Dumb fix for valve cutting off convar descriptions at 80
 	// characters for some reason
 	/* TODO Memory::Scan data segments
 	char *s = (char *)Memory::Scan(this->Name(), Offsets::Convar_PrintDescription);  // "%-80s - %.80s"
 	if (s) {
-		Memory::UnProtect(s, 11);
-		strcpy(s, "%-80s - %s");
+	 Memory::UnProtect(s, 11);
+	 strcpy(s, "%-80s - %s");
 	}*/
 
 	if (this->g_physCollision = Interface::Create(MODULE("vphysics"), "VPhysicsCollision007")) {
@@ -1169,14 +1212,20 @@ bool Engine::Init() {
 	auto bink_mod = Memory::GetModuleHandleByName(MODULE("valve_avi"));
 #endif
 	if (bink_mod) {
-		BinkNextFrame = Memory::GetSymbolAddress<void (__stdcall *)(void *bink)>(bink_mod, STDCALL_NAME("BinkNextFrame", 4));
+		BinkNextFrame = Memory::GetSymbolAddress<void(__stdcall *)(void *bink)>(bink_mod, STDCALL_NAME("BinkNextFrame", 4));
 		BinkNextFrame_Hook.SetFunc(BinkNextFrame);
-		BinkShouldSkip = Memory::GetSymbolAddress<int (__stdcall *)(void *bink)>(bink_mod, STDCALL_NAME("BinkShouldSkip", 4));
+		BinkShouldSkip = Memory::GetSymbolAddress<int(__stdcall *)(void *bink)>(bink_mod, STDCALL_NAME("BinkShouldSkip", 4));
 		BinkShouldSkip_Hook.SetFunc(BinkShouldSkip);
-		BinkWait = Memory::GetSymbolAddress<int (__stdcall *)(void *bink)>(bink_mod, STDCALL_NAME("BinkWait", 4));
+		BinkWait = Memory::GetSymbolAddress<int(__stdcall *)(void *bink)>(bink_mod, STDCALL_NAME("BinkWait", 4));
 		BinkWait_Hook.SetFunc(BinkWait);
 		Memory::CloseModuleHandle(bink_mod);
 	}
+
+#ifdef _WIN32
+	auto CopyPropData_addr = Memory::Scan<void *>(MODULE("engine"), "55 8B EC 8B 48 ? 8B 55");
+	if (MH_CreateHook(CopyPropData_addr, &CopyPropData_Detour, (void **)&CopyPropData) == MH_OK)
+		MH_EnableHook(CopyPropData_addr);
+#endif
 
 	return this->hasLoaded = this->engineClient && this->s_ServerPlugin && this->demoplayer && this->demorecorder && this->engineTrace && this->engineTraceClient;
 }
