@@ -892,48 +892,70 @@ int __stdcall BinkWait_Detour(void *bink) {
 }
 
 #ifdef _WIN32
-bool __cdecl CopyPropData_Impl(void *pDecoder, void *pOut, int iProp, void *arg_4) {
-	auto ppProp = (SendProp **)(((uintptr_t *)pDecoder)[13] + 4 * iProp);
+// Original function pointer (naked, no calling convention)
+void *g_Original = nullptr;
 
-	console->Print("CopyPropData(%p, %p, %d) | ppProp = %p.\n", pDecoder, pOut, iProp, ppProp);
+// Handler return structure
+struct HookResult {
+	bool callOriginal;
+	int returnValue;
+};
 
-	// if (iProp > 54)
-	// 	return false;
+HookResult __cdecl Hook_Handler(
+	int a1,
+	void *u,
+	int iClass,
+	int iSerialNum) {
+	HookResult result;
 
-	// console->Print("pProp = %p.\n", *ppProp);
+	console->Print("CL_CopyNewEntity(%p, %d, %d).\n", u, iClass, iSerialNum);
 
-	return true;
+	// YOUR LOGIC - decide whether to call original
+	result.callOriginal = true;  // Change this based on your conditions
+	result.returnValue = 0;      // Custom return value if not calling original
+
+	if (iClass == 106) {
+		console->Print("skipping over point_survey.\n");
+		result.callOriginal = false;
+	}
+
+	return result;
 }
 
-void (*CopyPropData)();
-void __declspec(naked) CopyPropData_Detour() {
+__declspec(naked) void Hook_CL_CopyNewEntity() {
 	__asm {
-        pushad
-        pushfd
-
-        mov ecx, dword ptr [esp + 0x20]  // eax = pDecoder.
-        mov edx, dword ptr [esp + 0x08]  // esi = pOut.
-        mov ebx, dword ptr [esp + 0x28]  // [esp+4] on entry = pProp.
-        mov edi, dword ptr [esp + 0x2C]  // [esp+8] on entry = arg_4.
-        
-        push edi
+		// Save registers (except edi which we need)
+        push ebp
+        mov ebp, esp
+        push esi
         push ebx
-        push edx
-        push ecx
-        call CopyPropData_Impl
-        add esp, 16
+
+					// Push parameters for handler
+        push [ebp+0x10]  // iSerialNum
+        push [ebp+0x0C]  // iClass
+        push [ebp+0x08]  // u
+        push edi  // a1 from edi
         
-        test eax, eax 
-        jnz orig
+        call Hook_Handler
+        add esp, 0x10
+
+		// eax = callOriginal, edx = returnValue
+        test al, al
+        jz skip_original
+
+				// Restore and call original
+        pop ebx
+        pop esi
+        pop ebp
+        jmp g_Original
         
-		popfd
-        popad
-        ret 8
-        
-    orig:
-        popfd
-        popad
-        jmp CopyPropData
+    skip_original:
+		// Use custom return value
+        mov eax, edx
+        pop ebx
+        pop esi
+        pop ebp
+        ret
 	}
 }
 #endif
@@ -1222,9 +1244,9 @@ bool Engine::Init() {
 	}
 
 #ifdef _WIN32
-	auto CopyPropData_addr = Memory::Scan<void *>(MODULE("engine"), "55 8B EC 8B 48 ? 8B 55");
-	if (MH_CreateHook(CopyPropData_addr, &CopyPropData_Detour, (void **)&CopyPropData) == MH_OK)
-		MH_EnableHook(CopyPropData_addr);
+	auto addr = Memory::Scan<void *>(MODULE("engine"), "55 8B EC B8 ? ? ? ? E8 ? ? ? ? 56 8B 75 ? 8B 46");
+	if (MH_CreateHook(addr, &Hook_CL_CopyNewEntity, (void **)&g_Original) == MH_OK)
+		MH_EnableHook(addr);
 #endif
 
 	return this->hasLoaded = this->engineClient && this->s_ServerPlugin && this->demoplayer && this->demorecorder && this->engineTrace && this->engineTraceClient;
