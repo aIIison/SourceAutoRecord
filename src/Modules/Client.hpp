@@ -14,7 +14,7 @@ enum class CMStatus {
 };
 
 class Client : public Module {
-private:
+public:
 	Interface *g_ClientDLL = nullptr;
 	Interface *g_pClientMode = nullptr;
 	Interface *g_pClientMode2 = nullptr;
@@ -47,7 +47,7 @@ public:
 	using _IN_DeactivateMouse = void (*)(void *thisptr);
 	using _AddAvatarPanelItem = void(__cdecl *)(void *pLeaderboard, void *pStatLists, const PortalLeaderboardItem_t *pData, int nScore, int nType, int nPlayerType, int nAvatarIndex, int nHeight, int nSlot, bool bHUDElement);
 	using _PrecacheParticleSystem = int(__cdecl *)(const char *pszParticleName);
-	using _DispatchParticleEffect = void (__cdecl *)(const char *pszParticleName, Vector vecOrigin, Vector vecStart, QAngle vecAngles, void *pEntity, int nSplitScreenPlayerSlot, void *filter);
+	using _DispatchParticleEffect = void(__cdecl *)(const char *pszParticleName, Vector vecOrigin, Vector vecStart, QAngle vecAngles, void *pEntity, int nSplitScreenPlayerSlot, void *filter);
 
 
 	_GetClientEntity GetClientEntity = nullptr;

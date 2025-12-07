@@ -892,71 +892,90 @@ int __stdcall BinkWait_Detour(void *bink) {
 }
 
 #ifdef _WIN32
-// Original function pointer (naked, no calling convention)
-void *g_Original = nullptr;
+void *_CL_CopyNewEntity = nullptr;
+int CL_CopyNewEntity(int a1, void *u, int iClass, int iSerialNum) {
+	int result;
+	__asm {
+        mov edi, a1
+        push iSerialNum
+        push iClass
+        push u
+        call _CL_CopyNewEntity
+        add esp, 0x0C
+        mov result, eax
+	}
+	return result;
+}
 
-// Handler return structure
-struct HookResult {
-	bool callOriginal;
-	int returnValue;
-};
-
-HookResult __cdecl Hook_Handler(
+int __cdecl CL_CopyNewEntity_Handler(
 	int a1,
 	void *u,
 	int iClass,
 	int iSerialNum) {
-	HookResult result;
+	console->Print("CL_CopyNewEntity(%d, %p, %d, %d).\n", a1, u, iClass, iSerialNum);
 
-	console->Print("CL_CopyNewEntity(%p, %d, %d).\n", u, iClass, iSerialNum);
-
-	// YOUR LOGIC - decide whether to call original
-	result.callOriginal = true;  // Change this based on your conditions
-	result.returnValue = 0;      // Custom return value if not calling original
-
-	if (iClass == 106) {
+	if (iClass == 106 /* CPointSurvey */) {
 		console->Print("skipping over point_survey.\n");
-		result.callOriginal = false;
+		return 0;
 	}
 
-	return result;
+	return CL_CopyNewEntity(a1, u, iClass, iSerialNum);
 }
 
-__declspec(naked) void Hook_CL_CopyNewEntity() {
+__declspec(naked) void CL_CopyNewEntity_Hook() {
 	__asm {
-		// Save registers (except edi which we need)
         push ebp
         mov ebp, esp
         push esi
         push ebx
 
-					// Push parameters for handler
-        push [ebp+0x10]  // iSerialNum
-        push [ebp+0x0C]  // iClass
-        push [ebp+0x08]  // u
-        push edi  // a1 from edi
+        push [ebp+0x10]  // iSerialNum.
+        push [ebp+0x0C]  // iClass.
+        push [ebp+0x08]  // u.
+        push edi  // a1.
         
-        call Hook_Handler
+        call CL_CopyNewEntity_Handler
         add esp, 0x10
 
-		// eax = callOriginal, edx = returnValue
-        test al, al
-        jz skip_original
-
-				// Restore and call original
-        pop ebx
-        pop esi
-        pop ebp
-        jmp g_Original
-        
-    skip_original:
-		// Use custom return value
-        mov eax, edx
+		// return value already in eax.
         pop ebx
         pop esi
         pop ebp
         ret
 	}
+}
+
+int(__cdecl *CL_CopyExistingEntity)(void *u);
+int __cdecl CL_CopyExistingEntity_Detour(void *u);
+static Hook CL_CopyExistingEntity_Hook(&CL_CopyExistingEntity_Detour);
+int __cdecl CL_CopyExistingEntity_Detour(void *u) {
+	if (!u)
+		return 0;
+
+	int m_nNewEntity = *(int *)((uintptr_t)u + 24);
+	console->Print("CL_CopyExistingEntity(%p) | m_nNewEntity = %d.\n", u, m_nNewEntity);
+
+	auto ent = client->GetClientEntity(client->s_EntityList->ThisPtr(), m_nNewEntity);
+	if (!ent) {
+		return 0;
+	}
+
+	CL_CopyExistingEntity_Hook.Disable();
+	int ret = CL_CopyExistingEntity(u);
+	CL_CopyExistingEntity_Hook.Enable();
+	return ret;
+}
+
+int(__cdecl *CL_ParseEventDelta)(int a1, void *pToData, RecvTable *pRecvTable);
+int __cdecl CL_ParseEventDelta_Detour(int a1, void *pToData, RecvTable *pRecvTable);
+static Hook CL_ParseEventDelta_Hook(&CL_ParseEventDelta_Detour);
+int __cdecl CL_ParseEventDelta_Detour(int a1, void *pToData, RecvTable *pRecvTable) {
+	console->Print("CL_ParseEventDelta(%p, %p) | name = %s.\n", pToData, pRecvTable, pRecvTable->m_pNetTableName);
+
+	CL_ParseEventDelta_Hook.Disable();
+	int ret = CL_ParseEventDelta(a1, pToData, pRecvTable);
+	CL_ParseEventDelta_Hook.Enable();
+	return ret;
 }
 #endif
 
@@ -1244,9 +1263,15 @@ bool Engine::Init() {
 	}
 
 #ifdef _WIN32
-	auto addr = Memory::Scan<void *>(MODULE("engine"), "55 8B EC B8 ? ? ? ? E8 ? ? ? ? 56 8B 75 ? 8B 46");
-	if (MH_CreateHook(addr, &Hook_CL_CopyNewEntity, (void **)&g_Original) == MH_OK)
-		MH_EnableHook(addr);
+	auto CL_CopyNewEntity_addr = Memory::Scan<void *>(MODULE("engine"), "55 8B EC B8 ? ? ? ? E8 ? ? ? ? 56 8B 75 ? 8B 46");
+	if (MH_CreateHook(CL_CopyNewEntity_addr, &CL_CopyNewEntity_Hook, &_CL_CopyNewEntity) == MH_OK)
+		MH_EnableHook(CL_CopyNewEntity_addr);
+
+	CL_CopyExistingEntity = Memory::Scan<decltype(CL_CopyExistingEntity)>(MODULE("engine"), "55 8B EC 56 8B 75 ? 8B 4E ? 8B 51");
+	CL_CopyExistingEntity_Hook.SetFunc(CL_CopyExistingEntity);
+
+	CL_ParseEventDelta = Memory::Scan<decltype(CL_ParseEventDelta)>(MODULE("engine"), "55 8B EC 83 EC ? 56 57 33 C0");
+	CL_ParseEventDelta_Hook.SetFunc(CL_ParseEventDelta);
 #endif
 
 	return this->hasLoaded = this->engineClient && this->s_ServerPlugin && this->demoplayer && this->demorecorder && this->engineTrace && this->engineTraceClient;
